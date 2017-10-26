@@ -54,6 +54,8 @@ can(user, 'edit', product);
 
 ### allow(predicate, [actions], [condition])
 
+Adds an ability for an actor to perform an action on a target.
+
 See jsdoc comments in source.
 
 Examples:
@@ -64,7 +66,7 @@ const aPost = post => post instanceof Post
 const anEditor = user => aUser(editor) && user.roles.includes('editor')
 const anAdminUser = user => aUser(user) && user.roles.includes('admin')
 const publicPosts = post => aPost(post) && post.public
-const ownedPosts = (post, user) => aPost(post) && aUser(user) && post.autherId === user.id
+const ownedPosts = (post, user) => aPost(post) && aUser(user) && post.authorId === user.id
 
 // allow users to view all public posts
 allow(aUser, 'view', publicPosts);
@@ -110,6 +112,34 @@ Inverse of `.can()`.
 
 Same as `.can()`, but throws an error instead of returning `false`.
 
+### CanCan.combine(...canCans)
+
+Combine several `CanCan` instances into a single instance.
+
+See jsdocs comments in source.
+
+Examples:
+
+```js
+const productCanCan = new CanCan()
+const postCanCan = new CanCan()
+
+productCanCan.allow(
+	user => user instanceof User,
+	'read',
+	product => product instanceof Product
+)
+
+postCanCan.allow(
+	user => user instanceof User,
+	'read',
+	post => post instanceof Post
+)
+
+const canCan = CanCan.combine(productCanCan, postCanCan)
+
+canCan.can(user, 'view', post)
+```
 
 ## License
 

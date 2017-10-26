@@ -43,9 +43,9 @@ class CanCan {
   }
 
   /**
-   * Allows an action to occur by an actor on a target. If target is 'all' then
-   * any target will be allowed. If action is 'manage' then any action will
-   * be allowed.
+   * Adds an ability for an action to perform an action on a target.
+   *
+   * If action is 'manage' then any action will be allowed.
    *
    * When calling allow with just a predicate the fluent API is returned to make
    * it easy to add a new permission.
@@ -58,9 +58,9 @@ class CanCan {
    * allow(aUser).to('edit').on(aProduct)
    * @example
    * allow(anAdminUser).to('edit', 'read', 'delete').anything()
-   * @param {{ (actor: any): boolean }} predicate
+   * @param {{ (actor: any): boolean }} predicate The test to check an actor
    * @param {string | string[]} [actions] The actions that are being performed on the model
-   * @param {{ (target: any, actor: any, ): boolean }} [condition]
+   * @param {{ (target: any, actor: any): boolean }} [condition] The test to check a target
    * @return {FluentAllow | this}
    */
   allow (predicate, actions, condition) {
@@ -74,41 +74,7 @@ class CanCan {
 
     // If only given a predicate then return the fluent API.
     if (!actions && !condition) {
-      let called = false
-      return {
-        to (/* ...actions */) {
-          if (called) {
-            throw new Error('Cannot call `to` more than once')
-          }
-          called = true
-          const actions = [].concat.apply([], arguments)
-          let finished = false
-          return {
-            anything () {
-              if (finished) {
-                throw new Error('Cannot call `anything` more than once')
-              }
-              finished = true
-              self.allow(predicate, actions, function () { return true })
-              return self
-            },
-            on (condition) {
-              if (finished) {
-                throw new Error('Cannot call `on` more than once')
-              }
-              finished = true
-              if (typeof condition === 'function') {
-                self.allow(predicate, actions, condition)
-                return self
-              } else {
-                throw new Error(
-                  `Expected condition to be function, got ${typeof condition}`
-                )
-              }
-            }
-          }
-        }
-      }
+      return this.allowFluent(predicate)
     }
 
     condition = condition || function () { return true }
@@ -178,6 +144,69 @@ class CanCan {
       throw this.createAuthorizationError(actor, actions, target)
     }
   }
+
+  /**
+   * Performs an allow call, but using the fluent API.
+   *
+   * @param {{ (actor: any): boolean }} predicate The test to check an actor
+   * @return {FluentAllow} The fluent API object for allow
+   */
+  allowFluent (predicate) {
+    let called = false
+    return {
+      to (...actions) {
+        if (called) {
+          throw new Error('Cannot call `to` more than once')
+        }
+        called = true
+        actions = [].concat(...actions)
+        let finished = false
+        return {
+          anything () {
+            if (finished) {
+              throw new Error('Cannot call `anything` more than once')
+            }
+            finished = true
+            self.allow(predicate, actions, function () { return true })
+            return self
+          },
+          on (condition) {
+            if (finished) {
+              throw new Error('Cannot call `on` more than once')
+            }
+            finished = true
+            if (typeof condition === 'function') {
+              self.allow(predicate, actions, condition)
+              return self
+            } else {
+              throw new Error(
+                `Expected condition to be function, got ${typeof condition}`
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Combines several CanCan instances into a new instnace.
+ *
+ * @example
+ * const canCan = CanCan.combine(productCanCan, postCanCan)
+ * @return {CanCan} A new CanCan instance
+ */
+CanCan.combine = function (...canCans) {
+  const abilities = canCans.reduce(function (abilities, canCan) {
+    Object.keys(canCan.abilities).forEach(function (action) {
+      abilities[action] = (abilities[action] || [])
+        .concat(canCan.abilities[action])
+    })
+    return abilities
+  }, {})
+
+  return Object.assign(new CanCan(), { abilities })
 }
 
 module.exports = CanCan
