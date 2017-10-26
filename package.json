@@ -18,11 +18,7 @@
     "acl",
     "authorization"
   ],
-  "dependencies": {
-    "arrify": "^1.0.1",
-    "auto-bind": "^1.1.0",
-    "is-plain-obj": "^1.1.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "ava": "^0.19.1",
     "xo": "^0.18.2"
