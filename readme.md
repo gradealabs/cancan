@@ -29,12 +29,15 @@ $ npm install --save cancan
 const CanCan = require('cancan');
 
 const cancan = new CanCan();
-const {allow, can} = cancan;
+const { allow, can } = cancan;
 
 class User {}
 class Product {}
 
-allow(User, 'view', Product);
+const aUser = function (actor) { return actor instanceof User }
+const aProduct = function (target) { return target instanceof Product }
+
+allow(aUser, 'view', aProduct);
 
 const user = new User();
 const product = new Product();
@@ -49,73 +52,46 @@ can(user, 'edit', product);
 
 ## API
 
-### allow(model, action, target, [condition])
+### allow(predicate, [actions], [condition])
 
-Adds a new access rule.
-
-#### model
-
-Type: `class` (`function`)
-
-Configure the rule for instances of this class.
-
-#### action
-
-Type: `array|string`
-
-Name(s) of actions to allow.
-If action name is `manage`, it allows any action.
-
-#### target
-
-Type: `array|class|string`
-
-Scope this rule to the instances of this class.
-If value is `"all"`, rule applies to all models.
-
-#### condition
-
-Type: `object|function`
-
-Optional callback to apply additional checks on both target and action performers.
+See jsdoc comments in source.
 
 Examples:
 
 ```js
+const aUser = user => user instanceof User
+const aPost = post => post instanceof Post
+const anEditor = user => aUser(editor) && user.roles.includes('editor')
+const anAdminUser = user => aUser(user) && user.roles.includes('admin')
+const publicPosts = post => aPost(post) && post.public
+const ownedPosts = (post, user) => aPost(post) && aUser(user) && post.autherId === user.id
+
 // allow users to view all public posts
-allow(User, 'view', Post, {public: true});
+allow(aUser, 'view', publicPosts);
+// Or using the fluent API
+allow(aUser).to('view').on(publicPosts);
 
 // allow users to edit and delete their posts
-allow(User, ['edit', 'delete'], Post, (user, post) => post.authorId === user.id);
+allow(aUser, ['edit', 'delete'], ownedPosts);
+// Or using the fluent API
+allow(aUser).to('edit', 'delete').on(ownedPosts);
 
 // allow editors to do anything with all posts
-allow(Editor, 'manage', Post);
+allow(anEditor, [ 'manage' ], aPost);
+// Or using the fluent API
+allow(anEditor).to('manage').on(aPost);
 
 // allow admins to do anything with everything
-allow(AdminUser, 'manage', 'all');
+allow(anAdminUser, 'manage', () => true);
+// Or using the fluent API
+allow(anAdminUser).to('manage').anything();
 ```
 
-### can(instance, action, target)
+### can(actor, actions, target)
 
-Checks if the action is possible on `target` by `instance`.
+Checks if the action is possible on `target` by `actor`.
 
-#### instance
-
-Type: `object`
-
-Instance that wants to perform the action.
-
-#### action
-
-Type: `string`
-
-Action name.
-
-#### target
-
-Type: `object`
-
-Target against which the action would be performed.
+See jsdocs comments in source.
 
 Examples:
 
@@ -126,11 +102,11 @@ const post = new Post();
 can(user, 'view', post);
 ```
 
-### cannot(instance, action, target)
+### cannot(actor, actions, target)
 
 Inverse of `.can()`.
 
-### authorize(instance, action, target)
+### authorize(actor, actions, target)
 
 Same as `.can()`, but throws an error instead of returning `false`.
 
