@@ -13,12 +13,16 @@ class Model {
 
 class User extends Model {}
 class Product extends Model {}
+const aUser = user => user instanceof User
+const anAdminUser = user => aUser(user) && !!user.get('admin')
+const aProduct = product => product instanceof product
+const publishedProducts = product => aProduct(product) && product.published
 
 test('allow one action', t => {
   const cancan = new CanCan();
   const {can, allow, cannot} = cancan;
 
-  allow(User, 'read', Product);
+  allow(aUser).to('read').on(aProduct);
 
   const user = new User();
   const product = new Product();
@@ -32,7 +36,7 @@ test('allow many actions', t => {
   const cancan = new CanCan();
   const {can, allow} = cancan;
 
-  allow(User, ['read', 'create', 'destroy'], Product);
+  allow(aUser, ['read', 'create', 'destroy'], aProduct);
 
   const user = new User();
   const product = new Product();
@@ -46,7 +50,7 @@ test('allow all actions using "manage"', t => {
   const cancan = new CanCan();
   const {can, allow} = cancan;
 
-  allow(User, 'manage', Product);
+  allow(aUser, 'manage', aProduct);
 
   const user = new User();
   const product = new Product();
@@ -62,7 +66,7 @@ test('allow all actions and all objects', t => {
   const cancan = new CanCan();
   const {can, allow} = cancan;
 
-  allow(User, 'manage', 'all');
+  allow(aUser, 'manage', () => true);
 
   const user = new User();
   const product = new Product();
@@ -75,7 +79,7 @@ test('allow only objects that satisfy given condition', t => {
   const cancan = new CanCan();
   const {can, allow} = cancan;
 
-  allow(User, 'read', Product, {published: true});
+  allow(aUser, 'read', publishedProducts);
 
   const user = new User();
   const privateProduct = new Product();
@@ -89,7 +93,7 @@ test('allow only when performer passes a condition', t => {
   const cancan = new CanCan();
   const {can, allow} = cancan;
 
-  allow(User, 'read', Product, user => user.get('admin'));
+  allow(anAdminUser, 'read', aProduct);
 
   const user = new User();
   const adminUser = new User({admin: true});
@@ -103,7 +107,7 @@ test('allow only when target passes a condition', t => {
   const cancan = new CanCan();
   const {can, allow} = cancan;
 
-  allow(User, 'read', Product, (user, product) => product.get('published'));
+  allow(aUser, 'read', publishedProducts);
 
   const user = new User();
   const privateProduct = new Product();
@@ -113,30 +117,11 @@ test('allow only when target passes a condition', t => {
   t.true(can(user, 'read', publicProduct));
 });
 
-test('throw when condition is not a function or an object', t => {
-  const cancan = new CanCan();
-  const {allow} = cancan;
-
-  t.notThrows(() => allow(User, 'read', Product, undefined));
-  t.throws(() => allow(User, 'read', Product, 'abc'), 'Expected condition to be object or function, got string');
-});
-
-test('allow permissions on classes', t => {
-  const cancan = new CanCan();
-  const {can, allow} = cancan;
-
-  allow(User, 'read', Product);
-
-  const user = new User();
-
-  t.true(can(user, 'read', Product));
-});
-
 test('throw if permission is not granted', t => {
   const cancan = new CanCan();
   const {allow, authorize} = cancan;
 
-  allow(User, 'read', Product, (user, product) => product.get('published'));
+  allow(aUser, 'read', publishedProducts);
 
   const user = new User();
   const privateProduct = new Product();
@@ -153,16 +138,17 @@ test('throw a custom error if permission is not granted', t => {
       this.message = message;
     }
   }
-
-  const cancan = new CanCan({
-    createError(performer, action) {
+  class CanCan2 extends CanCan {
+    createAuthorizationError (actor, actions, target) {
       return new AuthError(`User couldn't ${action} product`);
     }
-  });
+  }
+
+  const cancan = new CanCan2()
 
   const {allow, authorize} = cancan;
 
-  allow(User, 'read', Product, (user, product) => product.get('published'));
+  allow(aUser, 'read', publishedProducts);
 
   const user = new User();
   const privateProduct = new Product();
@@ -171,24 +157,4 @@ test('throw a custom error if permission is not granted', t => {
   authorize(user, 'read', publicProduct);
 
   t.throws(() => authorize(user, 'read', privateProduct), AuthError, 'User couldn\'t read product');
-});
-
-test('override instanceOf', t => {
-  const cancan = new CanCan({
-    instanceOf(instance, model) {
-      return instance instanceof model.Instance;
-    }
-  });
-
-  const {allow, can, cannot} = cancan;
-
-  // Mimic Sequelize models
-  allow({Instance: User}, 'read', {Instance: Product});
-
-  const user = new User();
-  const product = new Product();
-
-  t.true(can(user, 'read', product));
-  t.false(cannot(user, 'read', product));
-  t.false(can(user, 'create', product));
 });
