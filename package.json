@@ -9,7 +9,7 @@
     "node": ">= 4"
   },
   "scripts": {
-    "test": "xo && ava"
+    "test": "standard && ava"
   },
   "files": [
     "index.js"
@@ -21,6 +21,13 @@
   "dependencies": {},
   "devDependencies": {
     "ava": "^0.19.1",
-    "xo": "^0.18.2"
+    "standard": "^10.0.3"
+  },
+  "xo": {
+    "space": true,
+    "semicolon": false,
+    "plugins": [
+      "standard"
+    ]
   }
 }

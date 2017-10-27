@@ -36,8 +36,10 @@ class CanCan {
    * @return {Error}
    */
   createAuthorizationError (actor, actions, target) {
+    actions = [].concat(actions)
+    const plural = actions.length > 1 ? 's' : ''
     return Object.assign(
-      new Error(`Actions ${[].concat(actions).join(', ')} not permitted`),
+      new Error(`Action${plural} ${actions.join(', ')} not permitted`),
       { actor, actions, target, name: 'AuthorizationError' }
     )
   }
@@ -64,8 +66,6 @@ class CanCan {
    * @return {FluentAllow | this}
    */
   allow (predicate, actions, condition) {
-    const self = this
-
     if (typeof predicate !== 'function') {
       throw new TypeError(
         `Expected predicate to be function, got ${typeof predicate}`
@@ -80,7 +80,7 @@ class CanCan {
     condition = condition || function () { return true }
     const abilities = this.abilities
 
-    [].concat(actions).forEach(function (action) {
+    ;[].concat(actions).forEach(function (action) {
       let tests = abilities[action] || []
       tests.push(function test (actor, target) {
         return predicate(actor) && condition(target, actor)
@@ -152,6 +152,7 @@ class CanCan {
    * @return {FluentAllow} The fluent API object for allow
    */
   allowFluent (predicate) {
+    const self = this
     let called = false
     return {
       to (...actions) {
