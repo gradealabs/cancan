@@ -45,12 +45,12 @@ class CanCan {
   }
 
   /**
-   * Adds an ability for an action to perform an action on a target.
+   * Adds an ability for an actor to perform an action on a target.
    *
    * If action is 'manage' then any action will be allowed.
    *
    * When calling allow with just a predicate the fluent API is returned to make
-   * it easy to add a new permission.
+   * it easy to add a new ability.
    *
    * @example
    * allow(actor => actor instnaceof User, 'edit', target => target instanceof Product)
