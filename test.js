@@ -50,6 +50,7 @@ test('allow all actions using "manage"', t => {
   const cancan = new CanCan()
   const {can, allow} = cancan
 
+  allow(aUser, 'read', anAdminUser)
   allow(aUser, 'manage', aProduct)
 
   const user = new User()

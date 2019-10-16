@@ -103,8 +103,8 @@ class CanCan {
     const abilities = this.abilities
 
     return [].concat(actions).every(function (action) {
-      const tests = abilities[action] || abilities['manage']
-      if (tests) {
+      const tests = [].concat(abilities[action], abilities['manage']).filter(Boolean)
+      if (tests.length) {
         return tests.some(function (test) {
           return test(actor, target)
         })
