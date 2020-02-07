@@ -1,6 +1,6 @@
 {
   "name": "cancan",
-  "version": "4.0.3",
+  "version": "4.0.0",
   "description": "Authorize easily",
   "author": "Vadim Demedes <vdemedes@gmail.com>",
   "license": "MIT",
