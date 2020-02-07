@@ -1,10 +1,14 @@
+class Deny {
+
+}
+
 /**
- * @typedef {Object} FluentAllow
- * @prop {{ (actions: string | string[]): FluentAllowEnder }} to
+ * @typedef {Object} Fluent
+ * @prop {{ (actions: string | string[]): FluentEnder }} to
  */
 
 /**
- * @typedef {Object} FluentAllowEnder
+ * @typedef {Object} FluentEnder
  * @prop {{ (condition: (target: any, actor: any) => boolean): CanCan }} on
  * @prop {{ (): CanCan }} anything
  */
@@ -21,6 +25,7 @@ class CanCan {
 
     this.createAuthorizationError = this.createAuthorizationError.bind(this)
     this.allow = this.allow.bind(this)
+    this.deny = this.deny.bind(this)
     this.can = this.can.bind(this)
     this.cannot = this.cannot.bind(this)
     this.authorize = this.authorize.bind(this)
@@ -53,9 +58,9 @@ class CanCan {
    * it easy to add a new ability.
    *
    * @example
-   * allow(actor => actor instnaceof User, 'edit', target => target instanceof Product)
+   * allow(actor => actor instanceof User, 'edit', target => target instanceof Product)
    * @example
-   * const aUser = actor => actor instnaceof User
+   * const aUser = actor => actor instanceof User
    * const aProduct = target => target instanceof Product
    * allow(aUser).to('edit').on(aProduct)
    * @example
@@ -63,7 +68,7 @@ class CanCan {
    * @param {{ (actor: any): boolean }} predicate The test to check an actor
    * @param {string | string[]} [actions] The actions that are being performed on the model
    * @param {{ (target: any, actor: any): boolean }} [condition] The test to check a target
-   * @return {FluentAllow | this}
+   * @return {Fluent | this}
    */
   allow (predicate, actions, condition) {
     if (typeof predicate !== 'function') {
@@ -74,7 +79,7 @@ class CanCan {
 
     // If only given a predicate then return the fluent API.
     if (!actions && !condition) {
-      return this.allowFluent(predicate)
+      return this.fluent(predicate, this.allow)
     }
 
     condition = condition || function () { return true }
@@ -84,6 +89,54 @@ class CanCan {
       let tests = abilities[action] || []
       tests.push(function test (actor, target) {
         return predicate(actor) && condition(target, actor)
+      })
+      abilities[action] = tests
+    })
+
+    return this
+  }
+
+  /**
+   * Denies the ability for an actor to perform an action on a target.
+   *
+   * If action is 'manage' then any action will be denied.
+   *
+   * When calling deny with just a predicate the fluent API is returned to make
+   * it easy to deny a new ability.
+   *
+   * @example
+   * deny(actor => actor instanceof User, 'edit', target => target instanceof Product)
+   * @example
+   * const aUser = actor => actor instanceof User
+   * const aProduct = target => target instanceof Product
+   * deny(aUser).to('edit').on(aProduct)
+   * @example
+   * deny(anAdminUser).to('edit', 'read', 'delete').anything()
+   * @param {{ (actor: any): boolean }} predicate The test to check an actor
+   * @param {string | string[]} [actions] The actions that are being performed on the model
+   * @param {{ (target: any, actor: any): boolean }} [condition] The test to check a target
+   * @return {Fluent | this}
+   */
+  deny (predicate, actions, condition) {
+    if (typeof predicate !== 'function') {
+      throw new TypeError(
+        `Expected predicate to be function, got ${typeof predicate}`
+      )
+    }
+
+    // If only given a predicate then return the fluent API.
+    if (!actions && !condition) {
+      return this.fluent(predicate, this.deny)
+    }
+
+    condition = condition || function () { return true }
+    const abilities = this.abilities
+
+    ;[].concat(actions).forEach(function (action) {
+      let tests = abilities[action] || []
+      tests.push(function test (actor, target) {
+        const pass = predicate(actor) && condition(target, actor)
+        return pass ? new Deny() : false
       })
       abilities[action] = tests
     })
@@ -105,9 +158,13 @@ class CanCan {
     return [].concat(actions).every(function (action) {
       const tests = [].concat(abilities[action], abilities['manage']).filter(Boolean)
       if (tests.length) {
-        return tests.some(function (test) {
+        const pass = tests.reduce(function (pass, test) {
+          if (pass instanceof Deny) {
+            return pass
+          }
           return test(actor, target)
-        })
+        }, true)
+        return pass instanceof Deny ? false : pass
       } else {
         return false
       }
@@ -145,13 +202,15 @@ class CanCan {
     }
   }
 
-  /**
-   * Performs an allow call, but using the fluent API.
+  /*
+   * Performs an allow or deny call, but using the fluent API.
    *
+   * @private
    * @param {{ (actor: any): boolean }} predicate The test to check an actor
-   * @return {FluentAllow} The fluent API object for allow
+   * @param {{ (...args): Fluent | this }} allowOrDeny allow or deny method
+   * @return {Fluent} The fluent API object for allow
    */
-  allowFluent (predicate) {
+  fluent (predicate, allowOrDeny) {
     const self = this
     let called = false
     return {
@@ -168,7 +227,7 @@ class CanCan {
               throw new Error('Cannot call `anything` more than once')
             }
             finished = true
-            self.allow(predicate, actions, function () { return true })
+            allowOrDeny.call(self, predicate, actions, function () { return true })
             return self
           },
           on (condition) {
@@ -177,7 +236,7 @@ class CanCan {
             }
             finished = true
             if (typeof condition === 'function') {
-              self.allow(predicate, actions, condition)
+              allowOrDeny.call(self, predicate, actions, condition)
               return self
             } else {
               throw new Error(
