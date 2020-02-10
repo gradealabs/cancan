@@ -90,8 +90,8 @@ test('deny all actions and all objects', t => {
   t.true(cannot(user, 'read', product))
   t.true(cannot(user, 'modify', user))
   t.true(cannot(user, 'modify', product))
-  t.true(cannot(user, 'manage', user))
-  t.true(cannot(user, 'manage', product))
+  t.true(cannot(user, 'create', user))
+  t.true(cannot(user, 'create', product))
 })
 
 test('deny only certain actions of certain objects', function (t) {
@@ -100,18 +100,18 @@ test('deny only certain actions of certain objects', function (t) {
 
   allow(aUser, 'manage', aProduct)
   allow(aUser, 'manage', aUser)
-  deny(aUser, ['read'], aProduct)
+  deny(aUser, 'read', aProduct)
 
   const user = new User()
   const product = new Product()
 
   t.true(can(user, 'read', user))
   t.true(can(user, 'modify', user))
-  t.true(can(user, 'manage', user))
+  t.true(can(user, 'create', user))
   t.true(cannot(user, 'read', product))
-  // TODO: these are the cases in question
-  // t.true(cannot(user, 'manage', product))
-  // t.true(can(user, 'write', product))
+  t.true(can(user, 'write', product))
+  t.true(can(user, 'modify', product))
+  t.true(can(user, 'create', product))
 })
 
 test('deny only objects that satisfy given condition', t => {
