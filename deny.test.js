@@ -47,6 +47,7 @@ test('deny many actions', t => {
   t.true(cannot(user, 'destroy', product))
   t.true(cannot(user, 'create', product))
   t.true(can(user, 'read', product))
+  t.true(can(user, 'write', product))
 })
 
 test('deny all actions using "manage"', t => {
@@ -93,9 +94,28 @@ test('deny all actions and all objects', t => {
   t.true(cannot(user, 'manage', product))
 })
 
+test.only('deny only certain actions of certain objects', function (t) {
+  const cancan = new CanCan()
+  const {can, cannot, allow, deny} = cancan
+
+  allow(aUser, ['read', 'write', 'manage'], aProduct)
+  allow(aUser, 'manage', aUser)
+  deny(aUser, ['read', 'write'], aProduct)
+
+  const user = new User()
+  const product = new Product()
+
+  t.true(can(user, 'read', user))
+  t.true(can(user, 'modify', user))
+  t.true(can(user, 'manage', user))
+  t.true(cannot(user, 'read', product))
+  t.true(can(user, 'manage', product))
+  t.true(cannot(user, 'write', product))
+})
+
 test('deny only objects that satisfy given condition', t => {
   const cancan = new CanCan()
-  const {cannot, allow, deny} = cancan
+  const {cannot, can, allow, deny} = cancan
 
   allow(aUser, 'manage', () => true)
   deny(aUser, 'read', publishedProducts)
@@ -106,6 +126,8 @@ test('deny only objects that satisfy given condition', t => {
 
   t.false(cannot(user, 'read', privateProduct))
   t.true(cannot(user, 'read', publicProduct))
+  t.true(can(user, 'write', publicProduct))
+  t.true(can(user, 'modify', publicProduct))
 })
 
 test('deny only when performer passes a condition', t => {

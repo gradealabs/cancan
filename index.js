@@ -157,13 +157,15 @@ class CanCan {
 
     return [].concat(actions).every(function (action) {
       const tests = [].concat(abilities[action], abilities['manage']).filter(Boolean)
+      let hasBeenDenied = false
       const pass = tests.reduce(function (pass, test) {
-        if (pass instanceof Deny && pass) {
+        if (pass instanceof Deny || hasBeenDenied) {
+          hasBeenDenied = true
           return pass
         }
         return test(actor, target)
       }, false)
-      return (pass instanceof Deny) ? false : pass
+      return pass instanceof Deny ? false : pass
     })
   }
 
