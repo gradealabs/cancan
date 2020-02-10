@@ -53,10 +53,12 @@ test('deny all actions using "manage"', t => {
   const cancan = new CanCan()
   const {cannot, allow, deny} = cancan
 
-  allow(aUser, 'read', anAdminUser)
-  deny(aUser, 'manage', aProduct)
+  allow(aUser, 'manage', anAdminUser)
+  allow(aUser, ['read, write'], aProduct)
+  deny(aUser, 'manage', () => true)
 
   const user = new User()
+  const adminUser = new User({admin: true})
   const product = new Product()
 
   t.true(cannot(user, 'read', product))
@@ -64,6 +66,12 @@ test('deny all actions using "manage"', t => {
   t.true(cannot(user, 'update', product))
   t.true(cannot(user, 'destroy', product))
   t.true(cannot(user, 'modify', product))
+
+  t.true(cannot(user, 'read', adminUser))
+  t.true(cannot(user, 'create', adminUser))
+  t.true(cannot(user, 'update', adminUser))
+  t.true(cannot(user, 'destroy', adminUser))
+  t.true(cannot(user, 'modify', adminUser))
 })
 
 test('deny all actions and all objects', t => {
